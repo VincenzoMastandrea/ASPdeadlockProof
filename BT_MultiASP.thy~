@@ -1,0 +1,38 @@
+(*  Title:      BT_MultiASP.thy
+    Author:     Vincenzo Mastandrea
+                2015
+
+    Note:       Behavioral Type for SimpleMulti-active object  formalisation
+
+*)
+(*Conventions:
+  x,y=varname
+  locs = local variables
+  Stl = statement list
+  EContext is an execution context, ie a thread 
+  EcL = EContext list*)
+
+header {* Syntax and Semantics *}
+theory BT_MultiASP imports Main SimpleMultiASP AuxiliaryFunctions begin
+
+datatype Primitive = ASPInt | ASPBool
+
+datatype Object = ActRef ActName
+
+datatype DepPair = DependencyPair ActName MethodName ActName MethodName ("_._,_._")
+
+datatype BasicType =   Prm Primitive     (*_*) 
+                       | Obj Object   (*[\<alpha>]*)
+                       | Control ActName MethodName  BasicType  (*\<alpha>.m\<leadsto>r *)
+datatype BehavioralType =   Null  ("0")
+                          | MethodCall MethodName BasicType "BasicType list" BasicType ("_(_,_)\<rightarrow>_") 
+                          | SyncPoint  MethodName BasicType "BasicType list" BasicType DepPair
+                          | Par        BehavioralType BehavioralType   ("_\<parallel>_")
+                          | Seq        BehavioralType BehavioralType   ("_;_")
+
+datatype ExtendedType = Record BasicType | Future FutName
+
+datatype FutureRecord = Unchecked  BasicType BehavioralType ("(_,_)")
+                      | Checked    BasicType ("(_,0)")
+
+
