@@ -15,7 +15,7 @@
 header {* Syntax and Semantics *}
 theory BT_MultiASP imports Main SimpleMultiASP AuxiliaryFunctions begin
 
-datatype Primitive = ASPInt | ASPBool
+datatype Primitive = ASPInt int | ASPBool bool
 
 datatype Object = ActRef ActName  ("'[_']\<^sub>O")
 
@@ -32,6 +32,8 @@ datatype BehavioralType =  BTNull  ("0\<^sub>B\<^sub>T")
                           | SyncPoint  BehavioralType DepPair ("_.\<^sub>s_")
                           | Par        BehavioralType BehavioralType   ("_\<parallel>_")
                           | Seq        BehavioralType BehavioralType   ("_;\<^sub>s_")
+
+
 
 datatype BTMethod = BTMet ActName "(VarName*BasicType) list" BehavioralType BehavioralType BasicType   ("'(_,_')'{\<langle>_,_'\<rangle>}_")
 
@@ -85,32 +87,37 @@ where "BT_Prog \<Gamma>\<equiv> (Env_Program \<Gamma>)"
 datatype Types = ET ExtendedType 
                | FR FutureRecord 
                | BT BehavioralType
-               | ET_BT "ExtendedType * BehavioralType"
+               | ET_BT ExtendedType  BehavioralType ( "'(_,_')\<^sub>B\<^sub>T")
 
-datatype Terms = VarN VarName
-               | Val Primitive 
-               | PR Program 
-               | Cl Class 
-               | Met Method 
-               | Fut FutName 
-               | St Statement 
-               | Stl "Statement list"
-               | ExS Rhs
-               | Exp Expression
+
+datatype Terms = VarN VarName      (*\<rightarrow>  ExtendedType *)
+               | Val Primitive     (*\<rightarrow>  ExtendedType(Rec(Prm )) *)
+               | PR Program        (*\<rightarrow>  BehavioralType *)
+               | Cl Class          (*\<rightarrow>  BehavioralType *)
+               | Met Method        (*\<rightarrow>  BehavioralType *)
+               | Fut FutName       (*\<rightarrow>  FutureRecord *) 
+               | St Statement      (*\<rightarrow>  ExtendedType  BehavioralType *)
+               | Stl "Statement list"    
+               | ExS Rhs           (*\<rightarrow>  BehavioralType *)
+               | Exp Expression    (*\<rightarrow>  ExtendedType  BehavioralType *)
 (*
 abbreviation upd_record_fun:: "'a\<Rightarrow> ident \<Rightarrow> 'b \<Rightarrow> 'g \<Rightarrow> 'e"
 where
 "upd_record_map rec field x y \<equiv> rec\<lparr>field:=(rec field)(x:=y)\<rparr>"
 *)
-definition fresh_act:: "Environment \<Rightarrow> ActName \<Rightarrow> bool"
+definition fresh_act
  where
   "fresh_act \<Gamma> \<alpha> \<equiv> (\<forall> x \<gamma>. (Env_Variable \<Gamma>) x = Rec(Obj [\<gamma>]\<^sub>O) \<longrightarrow> \<gamma> \<noteq> \<alpha> )"   
 
-definition fresh_fut:: "Environment \<Rightarrow> FutName \<Rightarrow> bool"
+definition fresh_fut
  where
   "fresh_fut \<Gamma> f \<equiv> (\<forall> x f'. (Env_Variable \<Gamma>) x = (Future f') \<longrightarrow> f' \<noteq> f )"   
 
+value "'(Env_Variable \<Gamma>)"
 
+primrec for_each_x_in_\<Gamma>::"Environment \<Rightarrow> Types set" 
+ where
+  "for_each_x_in_\<Gamma> \<Gamma> \<equiv> image((Env_Variable \<Gamma>) x)"
 
 inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Terms \<Rightarrow> Types \<Rightarrow> Environment \<Rightarrow> bool" ("_ \<turnstile>\<^sub>__:_'|_")
   where
@@ -125,19 +132,19 @@ inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Terms \<R
     (*Expression with side effects *)
     T_Pure [simp, intro!]: 
       "\<lbrakk> \<Gamma> \<turnstile>\<^sub>m (VarN e) : (ET(Rec r)) | \<Gamma>
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN e) : (ET_BT((Rec r), 0\<^sub>B\<^sub>T)) | \<Gamma> " |
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN e) : ((Rec r), 0\<^sub>B\<^sub>T)\<^sub>B\<^sub>T | \<Gamma> " |
      T_Exp_Plus [simp, intro!]: 
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ET_BT((Rec r), b) | \<Gamma>' ;
-        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ET_BT((Rec r), b') | \<Gamma>'' 
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e +\<^sub>A e')) : ET_BT((Rec r), (b;\<^sub>sb')) | \<Gamma>'' " |
+      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ((Rec r), b)\<^sub>B\<^sub>T | \<Gamma>' ;
+        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ((Rec r), b')\<^sub>B\<^sub>T | \<Gamma>'' 
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e +\<^sub>A e')) : ((Rec r), (b;\<^sub>sb'))\<^sub>B\<^sub>T | \<Gamma>'' " |
      T_Exp_And [simp, intro!]: 
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ET_BT((Rec r), b) | \<Gamma>' ;
-        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ET_BT((Rec r), b') | \<Gamma>'' 
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e &\<^sub>A e')) : ET_BT((Rec r), (b;\<^sub>sb')) | \<Gamma>'' " |
+      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ((Rec r), b)\<^sub>B\<^sub>T | \<Gamma>' ;
+        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ((Rec r), b')\<^sub>B\<^sub>T | \<Gamma>'' 
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e &\<^sub>A e')) : ((Rec r), (b;\<^sub>sb'))\<^sub>B\<^sub>T | \<Gamma>'' " |
      T_Exp_Test [simp, intro!]: 
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ET_BT((Rec r), b) | \<Gamma>' ;
-        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ET_BT((Rec r), b') | \<Gamma>'' 
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e ==\<^sub>A e')) : ET_BT((Rec r), (b;\<^sub>sb')) | \<Gamma>'' " |  
+      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ((Rec r), b)\<^sub>B\<^sub>T | \<Gamma>' ;
+        \<Gamma>' \<turnstile>\<^sub>m (Exp e') : ((Rec r), b')\<^sub>B\<^sub>T | \<Gamma>'' 
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Exp (e ==\<^sub>A e')) : ((Rec r), (b;\<^sub>sb'))\<^sub>B\<^sub>T | \<Gamma>'' " |  
      T_Sync [simp, intro!]: 
       "\<lbrakk>(Type_Var \<Gamma> x) = (Future f); 
         \<Gamma> \<turnstile>\<^sub>m (Fut f) : (FR fut_rec) | \<Gamma> ;
@@ -146,13 +153,13 @@ inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Terms \<R
         \<Gamma> \<turnstile>\<^sub>m this : (ET (Rec (Obj [\<alpha>]\<^sub>O))) | \<Gamma> ;
         fut_rec_cheked = (Checked r);
         \<Gamma>'= \<Gamma>\<lparr>Env_Future := (Env_Future \<Gamma>)(f := fut_rec_checked)\<rparr>
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : (ET_BT((Rec r'), (b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> Unsync)) | (\<Gamma>') " | 
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : ((Rec r'), (b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> Unsync)\<^sub>B\<^sub>T | (\<Gamma>') " | 
      T_Value_Tick [simp, intro!]: 
       "\<lbrakk>(Type_Var \<Gamma> x) = (Future f); 
         \<Gamma> \<turnstile>\<^sub>m (Fut f) : (FR fut_rec) | \<Gamma> ;
         fut_rec = (Checked r);
         r = (\<alpha>..m\<leadsto>r')
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : (ET_BT((Rec r'), 0\<^sub>B\<^sub>T)) | \<Gamma> " | 
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : ((Rec r'), 0\<^sub>B\<^sub>T)\<^sub>B\<^sub>T | \<Gamma> " | 
      
      (*Statements *)       
      T_Alias  [simp, intro!]: 
@@ -162,7 +169,7 @@ inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Terms \<R
       \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (St S) : BT(0\<^sub>B\<^sub>T) | \<Gamma>' " |
      
      T_Var_Expression [simp, intro!]:
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ET_BT((Rec r), b) | \<Gamma>' ;
+      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m (Exp e) : ((Rec r), b)\<^sub>B\<^sub>T | \<Gamma>' ;
        S = (x =\<^sub>A (Expr e)) ;
        \<Gamma>''= \<Gamma>\<lparr>Env_Variable := (Env_Variable \<Gamma>)(x := (Rec r))\<rparr> 
        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (St S) : BT(b) | \<Gamma>'' " |
@@ -175,17 +182,37 @@ inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Terms \<R
      
      T_Invk [simp, intro!]:
       "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m this : (ET (Rec (Obj [\<alpha>]\<^sub>O))) | \<Gamma> ;
-        \<Gamma> \<turnstile>\<^sub>m (Exp e) : ET_BT((Rec (Obj [\<alpha>]\<^sub>O)), b) | \<Gamma>' ;
+        \<Gamma> \<turnstile>\<^sub>m (Exp e) : ((Rec (Obj [\<alpha>']\<^sub>O)), b)\<^sub>B\<^sub>T | \<Gamma>' ;
         m' = MName met;
-        \<Gamma> \<turnstile>\<^sub>m (Met met) : BT(m'((Obj [\<alpha>]\<^sub>O) , parType)\<rightarrow>r') | \<Gamma>' ;
+        \<Gamma>' \<turnstile>\<^sub>m (Met met) : BT(m'(obj , parType)\<rightarrow>r') | \<Gamma>' ;     
         S = (x=\<^sub>Ae.\<^sub>Am(el)) ;
         fresh_fut \<Gamma> f ;
-        \<Gamma>''= \<Gamma>'\<lparr>Env_Future := (Env_Future \<Gamma>)(f := (r, b)\<^sub>F )\<rparr> 
-       \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (St S) : BT(0\<^sub>B\<^sub>T) | \<Gamma>' "
+        r = (\<alpha>'..m'\<leadsto>r');
+        (*miss typing parameters*)
+        b' = (m'((Obj [\<alpha>']\<^sub>O) , parType')\<rightarrow>r');
+        \<Gamma>''= \<Gamma>'\<lparr>Env_Future := (Env_Future \<Gamma>)(f := (r, b')\<^sub>F )\<rparr> 
+       \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (St S) : BT(b ;\<^sub>s (b' \<parallel> Unsync)) | \<Gamma>' " |
 
+     T_Seq [simp, intro!]:
+      "\<lbrakk>sl = s;;sl' ;
+        \<Gamma> \<turnstile>\<^sub>m (St s) : BT(b) | \<Gamma>' ;
+        \<Gamma>' \<turnstile>\<^sub>m (Stl sl') : BT(b') | \<Gamma>''
+       \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Stl sl) : BT(b;\<^sub>sb') | \<Gamma>'' " |
      
+     T_Return [simp, intro!]:
+      "\<lbrakk>S = (return e) ;
+        \<Gamma> \<turnstile>\<^sub>m (Exp e) : (ET(Rec r)) | \<Gamma> ;
+        m' = MName met;
+        \<Gamma> \<turnstile>\<^sub>m (Met met) : BT(m'(obj , parType)\<rightarrow>r') | \<Gamma>        
+       \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (St S) : BT(0\<^sub>B\<^sub>T) | \<Gamma> "   |  
+
+     T_If [simp, intro!]:
+     "\<lbrakk> \<Gamma> \<turnstile>\<^sub>m (Exp e) : (ET(Rec (Prm (ASPBool r)))) | \<Gamma> ;
+       \<Gamma> \<turnstile>\<^sub>m (Stl sl\<^sub>1) : BT(b\<^sub>1) | \<Gamma>\<^sub>1 ;
+       \<Gamma> \<turnstile>\<^sub>m (Stl sl\<^sub>2) : BT(b\<^sub>2) | \<Gamma>\<^sub>2 ;
+       (\<And> \<Gamma>\<^sub>1(x) 
+     \<rbrakk> \<Longrightarrow>  \<Gamma> \<turnstile>\<^sub>m (St S) : BT(0\<^sub>B\<^sub>T) | \<Gamma> "   
       
-     
         
 (*    
    T_Value [simp, intro!]: 

@@ -55,7 +55,7 @@ datatype Rhs = Expr Expression
              | Hole (* runtime term *)
 
 datatype Statement =  Assign VarName Rhs  (infix "=\<^sub>A"  400) (*x=z*)
-| NewActive VarName ("newActive _" [300] 300)
+| NewActive VarName ("_ =\<^sub>A newActive'(')" [300] 300)
 | Return Expression ("return _" [300] 300)(*return E *)
 | If Expression "Statement list" "Statement list" ("IF _ THEN _ ELSE _ " [300,0,0] 300)(*if E then s else s *)
 (* skip |  NB: skip and seq are not necessary thanks to the use of statement list
@@ -235,7 +235,7 @@ inductive reduction :: "Program\<Rightarrow>[Configuration, Configuration] => bo
 
      NewActive  [simp, intro!]: 
      "\<lbrakk>Activities \<alpha> = Some (AO tasks Rq); 
-       tasks Q = Some (locs,newActive x;;Stl); 
+       tasks Q = Some (locs,x =\<^sub>A newActive();;Stl); 
        \<gamma>\<notin>dom Activities       
       \<rbrakk>   
         \<Longrightarrow> P\<turnstile>Cn Activities Futures 
