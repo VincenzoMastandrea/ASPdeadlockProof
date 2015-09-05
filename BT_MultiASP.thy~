@@ -17,11 +17,11 @@ theory BT_MultiASP imports Main SimpleMultiASP AuxiliaryFunctions begin
 
 datatype Primitive = ASPInt int | ASPBool bool
 
-(*datatype Exp = Val Primitive
+datatype Expression = Val Primitive
              | Var Variable 
              | Plus Expression Expression ("_+\<^sub>A_" [120,120] 200) 
              | And Expression Expression ("_&\<^sub>A_" [100,100] 300) 
-             | Test Expression Expression ("_==\<^sub>A_" [100,100] 300) *)
+             | Test Expression Expression ("_==\<^sub>A_" [100,100] 300) 
 
 
 datatype DepPair = DependencyPair ActName MethodName ActName MethodName ("'(_.._,_.._')")
@@ -138,7 +138,7 @@ inductive judge_exp_jud:: "Env \<Rightarrow> MethodName \<Rightarrow> Expression
     T_Exp_Plus [simp, intro!]: 
       "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m e: r, b | \<Gamma>' ;
         \<Gamma>' \<turnstile>\<^sub>m e': r, b' | \<Gamma>'' 
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (e +\<^sub>A e'): r,(b;\<^sub>sb') | \<Gamma>'' " (*|
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (e +\<^sub>A e'): r,(b;\<^sub>sb') | \<Gamma>'' " |
     T_Exp_And [simp, intro!]: 
       "\<lbrakk>\<Gamma> \<turnstile>\<^sub>m e: r, b | \<Gamma>' ;
         \<Gamma>' \<turnstile>\<^sub>m e': r, b' | \<Gamma>'' 
@@ -148,21 +148,21 @@ inductive judge_exp_jud:: "Env \<Rightarrow> MethodName \<Rightarrow> Expression
         \<Gamma>' \<turnstile>\<^sub>m e': r, b' | \<Gamma>'' 
         \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (e ==\<^sub>A e'): r, (b;\<^sub>sb') | \<Gamma>'' " |  
      T_Sync [simp, intro!]: 
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>V x: (Future f); 
-        \<Gamma> \<turnstile>\<^sub>F f : fut_rec | \<Gamma> ;
+      "\<lbrakk>(Type_Var \<Gamma> x) = (Future f); 
+        \<Gamma> \<turnstile>\<^sub>m (Fut f) : (FR fut_rec) | \<Gamma> ;
         fut_rec_uncheked = (Unchecked r b);
         r = (\<alpha>'..m'\<leadsto>r');
-        \<Gamma> \<turnstile>\<^sub>V this : (Rec [\<alpha>]\<^sub>O);
+        \<Gamma> \<turnstile>\<^sub>m this : (ET (Rec ([\<alpha>]\<^sub>O))) | \<Gamma> ;
         fut_rec_cheked = (Checked r);
-        \<Gamma>'= Gamma \<^sub>V\<Gamma> \<^sub>F\<Gamma> (f := fut_rec_checked) \<^sub>M\<Gamma>
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Var x) : r', ((b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> Unsync) | (\<Gamma>') " | 
+        \<Gamma>'= \<Gamma>\<lparr>Env_Future := (Env_Future \<Gamma>)(f := fut_rec_checked)\<rparr>
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : ( r', (b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> Unsync)\<^sub>B\<^sub>T | (\<Gamma>') "(* | 
      T_Value_Tick [simp, intro!]: 
-      "\<lbrakk>\<Gamma> \<turnstile>\<^sub>V x: (Future f);
-        \<Gamma> \<turnstile>\<^sub>F f : fut_rec;
+      "\<lbrakk>(Type_Var \<Gamma> x) = (Future f); 
+        \<Gamma> \<turnstile>\<^sub>m (Fut f) : (FR fut_rec) | \<Gamma> ;
         fut_rec = (Checked r);
         r = (\<alpha>..m\<leadsto>r')
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (Var x) : r', 0\<^sub>B\<^sub>T | \<Gamma> "      
-*)
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>m (VarN x) : (r', 0\<^sub>B\<^sub>T)\<^sub>B\<^sub>T | \<Gamma> "      
+ *)
 
 inductive typing:: "Environment \<Rightarrow> MethodName \<Rightarrow> Term \<Rightarrow> Type \<Rightarrow> Environment \<Rightarrow> bool" 
   where

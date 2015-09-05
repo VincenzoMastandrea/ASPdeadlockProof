@@ -15,7 +15,7 @@
 header {* Syntax and Semantics *}
 theory BT_MultiASP imports Main SimpleMultiASP AuxiliaryFunctions begin
 
-datatype Primitive = ASPInt int | ASPBool bool
+datatype Primitive = null | ASPInt int | ASPBool bool
 
 (*datatype Exp = Val Primitive
              | Var Variable 
