@@ -169,9 +169,9 @@ where
  "unsync_bt_set \<Gamma> [] = []" |
  "unsync_bt_set \<Gamma> (f#futList) = get_bt_UncheckedFutureRec((\<^sub>F\<Gamma>) f)#(unsync_bt_set \<Gamma> futList)" 
 
-abbreviation unsync:: "Env \<Rightarrow> BehavioralType list" ("unsync(_)")
+abbreviation unsync:: "Env \<Rightarrow> BehavioralType" ("unsync(_)")
 where
- "unsync \<Gamma> \<equiv> unsync_bt_set \<Gamma> (gammaFset_in_gammaFlist (\<^sub>F\<Gamma>))"
+ "unsync \<Gamma> \<equiv> Par(unsync_bt_set \<Gamma> (gammaFset_in_gammaFlist (\<^sub>F\<Gamma>)))"
 
 definition judge_prim_def:: "Env \<Rightarrow> Primitive \<Rightarrow> BasicType" 
 where "judge_prim_def \<Gamma> e \<equiv> _\<^sub>T"
@@ -211,7 +211,7 @@ inductive judge_exp_jud:: "Env \<Rightarrow> MethodName \<Rightarrow> Expression
         \<Gamma> \<turnstile>\<^sub>V this : (BType (Obj [\<alpha>]\<^sub>O));
         fut_rec_checked = (r,0\<^sub>B\<^sub>T)\<^sup>\<diamond>\<^sub>F;
         \<Gamma>'= (\<Gamma>[f\<rightarrow>fut_rec_checked]\<^sub>F)
-        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>E\<^sup>m (Var x) : (BType r'), Par((b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> Par(unsync(\<Gamma>))) | (\<Gamma>') " |   
+        \<rbrakk> \<Longrightarrow> \<Gamma> \<turnstile>\<^sub>E\<^sup>m (Var x) : (BType r'), Par((b.\<^sub>s(\<alpha>..m,\<alpha>'..m')) \<parallel> unsync(\<Gamma>)) | (\<Gamma>') " |   
      T_Value_Tick [simp, intro!]: 
       "\<lbrakk>\<Gamma> \<turnstile>\<^sub>V x: (Future f);
         \<Gamma> \<turnstile>\<^sub>F f : fut_rec;
@@ -250,7 +250,7 @@ and judge_stmtlist_jud:: "Env \<Rightarrow> MethodName \<Rightarrow> Statement l
         (*                  *)
         b\<^sub>3 = (m'((Obj [\<alpha>']\<^sub>O) , map snd parType)\<rightarrow>r');
         \<Gamma>''= (\<Gamma>'[f \<rightarrow> (r, b\<^sub>3)\<^sub>F]\<^sub>F)
-       \<rbrakk> \<Longrightarrow> \<Gamma>' \<turnstile>\<^sub>S\<^sup>m (x=\<^sub>Ae.\<^sub>Am'(el)) : Seq(b ;\<^sub>s Par(b\<^sub>3 \<parallel> Par(unsync(\<Gamma>')))) | \<Gamma>' " |
+       \<rbrakk> \<Longrightarrow> \<Gamma>' \<turnstile>\<^sub>S\<^sup>m (x=\<^sub>Ae.\<^sub>Am'(el)) : Seq(b ;\<^sub>s Par(b\<^sub>3 \<parallel> unsync(\<Gamma>'))) | \<Gamma>' " |
    
      T_Return [simp, intro!]:
       "\<lbrakk>
