@@ -22,7 +22,7 @@ theory SimpleMultiASP imports Main AuxiliaryFunctions begin
 subsection {* Syntax *}
 type_synonym ItfName = string
 type_synonym VarName =  string
-type_synonym Variable = VarName
+datatype VarOrThis = This | Variable VarName
 type_synonym ClassName = string
 type_synonym MethodName = string
 
@@ -32,7 +32,9 @@ type_synonym FutName = nat
 datatype Signature = Method ItfName MethodName  "(ItfName * VarName) list" 
   (* signature = Method returnType MethodName (list of parameters)*)
 
-datatype Value = null | ASPInt nat | ASPBool bool (* static values *)
+datatype Primitive = null | ASPInt int | ASPBool bool
+
+datatype Value =  Prim Primitive (* static values *)
                 | ActRef ActName (* runtime values *)
                 | FutRef FutName        
 
@@ -45,7 +47,7 @@ abbreviation SetObject:: "Object \<Rightarrow>VarName=>Value\<Rightarrow>Object"
 *)
 
 datatype Expression = Val Value
-             | Var Variable 
+             | Var VarOrThis 
              | Plus Expression Expression ("_+\<^sub>A_" [120,120] 200) 
              | And Expression Expression ("_&\<^sub>A_" [100,100] 300) 
              | Test Expression Expression ("_==\<^sub>A_" [100,100] 300) 
@@ -149,7 +151,7 @@ where
 (case  fetchMethodInClass (fetchClass P) m  of 
        Some (param_list,locs,b) \<Rightarrow> 
          if length param_list = length value_list then
-           ( let locales=  (map_of (zip locs (replicate (length locs) null)))
+           ( let locales=  (map_of (zip locs (replicate (length locs) (Prim null))))
                     ++ (map_of (zip param_list value_list)) in
                 Some (locales,b))
            else None
@@ -172,9 +174,9 @@ section{*SOS*}
 
 inductive_set EvalValue:: "(Value \<times> Value) set"
 where
-  Valnull[simp,intro]: "(null, null)\<in>EvalValue"              |
-  Valint[simp,intro]:  "(ASPInt i, (ASPInt i) )\<in>EvalValue"   |
-  valbool[simp,intro]: "(ASPBool b, (ASPBool b) )\<in>EvalValue" |
+  Valnull[simp,intro]: "(Prim null, Prim null)\<in>EvalValue"              |
+  Valint[simp,intro]:  "(Prim (ASPInt i), Prim (ASPInt i))\<in>EvalValue"   |
+  valbool[simp,intro]: "(Prim (ASPBool b), Prim (ASPBool b))\<in>EvalValue" |
   valact[simp,intro]:  "(ActRef \<alpha>, (ActRef \<alpha>) )\<in>EvalValue"   |
   valfut[simp,intro]:  "(FutRef f, (FutRef f) )\<in>EvalValue"
 
@@ -188,13 +190,13 @@ inductive_set EvalExpr:: "(Expression \<times> (VarName~=>Value) \<times> Value)
 (* (e1,locs,v) is true if e1 EVALUATES to v  in a setting where local variables are locs*)
  where
    exprval [simp,intro]:  "(v,ev)\<in>EvalValue \<Longrightarrow>(Val v, locs, ev)\<in>EvalExpr"                   |
-   exprlocs[simp,intro]:  "\<lbrakk>locs(x)=Some v;(v,ev)\<in>EvalValue\<rbrakk> \<Longrightarrow>(Var (x), locs, ev)\<in>EvalExpr" |
-   expradd [simp,intro]:  "\<lbrakk>(e,locs,ASPInt i)\<in>EvalExpr;(e',locs, ASPInt i')\<in>EvalExpr\<rbrakk> 
-                      \<Longrightarrow>(e +\<^sub>A e', locs, ASPInt (i+i'))\<in>EvalExpr"                             |
-   exprand [simp,intro]:  "\<lbrakk>(e,locs,ASPBool b)\<in>EvalExpr;(e',locs,ASPBool b')\<in>EvalExpr\<rbrakk> 
-                      \<Longrightarrow>(e &\<^sub>A e', locs, ASPBool (b\<and>b'))\<in>EvalExpr"                            |
-   exprtest[simp,intro]:  "\<lbrakk>(e,locs,ASPInt i)\<in>EvalExpr;(e',locs,ASPInt i')\<in>EvalExpr\<rbrakk> 
-                      \<Longrightarrow>(e ==\<^sub>A e', locs, ASPBool (i=i'))\<in>EvalExpr"
+   exprlocs[simp,intro]:  "\<lbrakk>locs(x)=Some v;(v,ev)\<in>EvalValue\<rbrakk> \<Longrightarrow>(Var (Variable x), locs, ev)\<in>EvalExpr" |
+   expradd [simp,intro]:  "\<lbrakk>(e,locs,Prim (ASPInt i))\<in>EvalExpr;(e',locs, Prim (ASPInt i'))\<in>EvalExpr\<rbrakk> 
+                      \<Longrightarrow>(e +\<^sub>A e', locs,Prim (ASPInt (i+i')))\<in>EvalExpr"                             |
+   exprand [simp,intro]:  "\<lbrakk>(e,locs,Prim (ASPBool b))\<in>EvalExpr;(e',locs,Prim (ASPBool b'))\<in>EvalExpr\<rbrakk> 
+                      \<Longrightarrow>(e &\<^sub>A e', locs, Prim (ASPBool (b\<and>b')))\<in>EvalExpr"                            |
+   exprtest[simp,intro]:  "\<lbrakk>(e,locs,Prim (ASPInt i))\<in>EvalExpr;(e',locs,Prim (ASPInt i'))\<in>EvalExpr\<rbrakk> 
+                      \<Longrightarrow>(e ==\<^sub>A e', locs, Prim (ASPBool (i=i')))\<in>EvalExpr"
 
 lemma EvalExpr_is_deterministic[rule_format]: 
       " (e,locs,v)\<in>EvalExpr \<longrightarrow> (\<forall> v'. (e,locs,v')\<in>EvalExpr \<longrightarrow>v=v')"
@@ -289,7 +291,7 @@ inductive reduction :: "Program\<Rightarrow>[Configuration, Configuration] => bo
     IfThenElseTrue [simp, intro!]: 
      "\<lbrakk>Activities \<alpha> = Some (AO tasks Rq); 
        tasks Q = Some (locs,(IF e THEN s\<^sub>t ELSE s\<^sub>e);;Stl);
-       (e,locs,ASPBool True)\<in>EvalExpr
+       (e,locs,Prim (ASPBool True))\<in>EvalExpr
    \<rbrakk>  
       \<Longrightarrow> P\<turnstile>Cn Activities Futures 
            \<leadsto>Cn (Activities(\<alpha>\<mapsto> (AO (tasks(Q\<mapsto>(locs,s\<^sub>t@Stl))) Rq))) Futures"  |
@@ -297,7 +299,7 @@ inductive reduction :: "Program\<Rightarrow>[Configuration, Configuration] => bo
     IfThenElseFalse [simp, intro!]: 
      "\<lbrakk>Activities \<alpha> = Some (AO tasks Rq);
        tasks Q = Some (locs,(IF e THEN s\<^sub>t ELSE s\<^sub>e);;Stl);
-       (e,locs,ASPBool False)\<in>EvalExpr
+       (e,locs,Prim (ASPBool False))\<in>EvalExpr
    \<rbrakk>  
       \<Longrightarrow> P\<turnstile>Cn Activities Futures 
           \<leadsto>Cn (Activities(\<alpha>\<mapsto> (AO (tasks(Q\<mapsto>(locs,s\<^sub>e@Stl))) Rq))) Futures"  
@@ -311,7 +313,7 @@ definition emptyObjClass  where
 definition BuildInitialConfigurationfromVarsStl:: "(VarName list) \<Rightarrow>Statement list\<Rightarrow> Configuration"
 where
   "BuildInitialConfigurationfromVarsStl vl stl \<equiv> Cn (empty(0\<mapsto>(AO
-                  (empty((0,''m'',[])\<mapsto>((map_of (zip vl (replicate (length vl) null))),stl))) [])))
+                  (empty((0,''m'',[])\<mapsto>((map_of (zip vl (replicate (length vl) (Prim null)))),stl))) [])))
                   (empty(0\<mapsto>Undefined))"
 
 definition InitialConfiguration:: "Program \<Rightarrow>Configuration"
