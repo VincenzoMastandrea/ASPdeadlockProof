@@ -534,5 +534,4 @@ definition InitialConfiguration:: "Program \<Rightarrow>Configuration"
 where  
 " InitialConfiguration prog \<equiv> case prog of (Prog Is CL Vars Stl) \<Rightarrow> BuildInitialConfigurationfromVarsStl (map snd Vars) Stl" 
 
-
 end

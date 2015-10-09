@@ -17,9 +17,10 @@
 
 header {* Syntax and Semantics *}
 
-theory SimpleMultiASP imports Main AuxiliaryFunctions begin
+theory SimpleMultiASP imports Main AuxiliaryFunctions CommonStructure begin
  
 subsection {* Syntax *}
+(* 
 type_synonym ItfName = string
 type_synonym VarName =  string
 datatype VarOrThis = This | Variable VarName
@@ -28,15 +29,11 @@ type_synonym MethodName = string
 
 type_synonym ActName = nat
 type_synonym FutName = nat
+*)
 
 datatype Signature = Method ItfName MethodName  "(ItfName * VarName) list" 
   (* signature = Method returnType MethodName (list of parameters)*)
 
-datatype Primitive = null | ASPInt int | ASPBool bool
-
-datatype Value =  Prim Primitive (* static values *)
-                | ActRef ActName (* runtime values *)
-                | FutRef FutName        
 
 (*
 type_synonym  Object = "(VarName~=>Value) * ClassName"
@@ -74,6 +71,7 @@ LocalVariables::"(ItfName * VarName) list"
 Body::"Statement list"
 (*MethDefinition methodname (local variables) body*)
 
+
 abbreviation MName:: "Method \<Rightarrow> MethodName"
 where "MName m \<equiv> case (MethSignature m) of 
         (Method returnType MethName listparameters) \<Rightarrow>MethName"
@@ -96,7 +94,7 @@ datatype Program = Prog Class "(ItfName * VarName) list" "Statement list"
 type_synonym EContext = "(VarName~=>Value) * (Statement list)" 
                          (*{l|s} execution context = location of this, local variables, and statements *)
 
-type_synonym Request = "FutName * MethodName * (Value list)" (*q ::= (f,m,\<^bold>v) *)
+type_synonym Request = "StaticFuture * MethodName * (Value list)" (*q ::= (f,m,\<^bold>v) *)
 
 abbreviation EC_locs:: "EContext \<Rightarrow>(VarName~=>Value)"
 where "EC_locs Ec \<equiv> fst Ec"
@@ -110,7 +108,7 @@ datatype ActiveObject = AO "Request~=>EContext" "Request list"
 
 datatype FutValue = Undefined | FutVal Value 
 
-datatype Configuration = Cn "ActName~=>ActiveObject" "FutName~=>FutValue"
+datatype Configuration = Cn "ActName~=>ActiveObject" "StaticFuture~=>FutValue"
 
 subsection {*finite configuration *}
 definition finite_Processes :: "(Request~=>EContext) \<Rightarrow> bool"
@@ -229,8 +227,8 @@ inductive reduction :: "Program\<Rightarrow>[Configuration, Configuration] => bo
 
     AssignLocal  [simp, intro!]: 
      "\<lbrakk>Activities \<alpha> = Some (AO tasks Rq); 
-       tasks Q = Some ((locs,(x=\<^sub>AExpr e);;Stl));
-       x\<in>dom locs ; (e,locs, v)\<in>EvalExpr
+       tasks Q = Some ((locs,(x=\<^sub>AExpr e);;Stl)); 
+       x\<in>dom locs ; (e,locs, v)\<in>EvalExpr 
       \<rbrakk> 
       \<Longrightarrow> P\<turnstile>Cn Activities Futures 
            \<leadsto>Cn (Activities(\<alpha>\<mapsto> (AO (tasks(Q\<mapsto>(locs(x\<mapsto>v),Stl))) Rq)))  Futures" |

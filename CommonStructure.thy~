@@ -1,0 +1,9 @@
+ (*  Title:     CommonStructure.thy
+    Author:     Mastandrea Vincenzo 2015
+    Note:       Common structure for behavioral types both static and runtime
+*)
+
+header {* Common structure for Behavioral Types *}
+
+theory CommonStructure imports Main begin
+
